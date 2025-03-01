@@ -1,0 +1,18 @@
+[project]
+name = "emag-stock-monitor"
+version = "0.0.1"
+description = "eMAG 库存监控"
+authors = [{ name = "kk119", email = "jdycty2002@163.com" }]
+readme = "README.md"
+requires-python = "^3.13"
+dependencies = ["scraper-utils @ ./wheels/scraper_utils-1.0.2-py3-none-any.whl", "loguru (>=0.7.3,<0.8.0)"]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

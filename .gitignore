@@ -1,0 +1,31 @@
+# Jetbrains
+/.idea/
+
+# VSCode
+/.vscode/
+/*.code-workspace
+
+# Python
+/.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+
+# Log
+/logs/
+*.log
+
+# Build
+/build/
+/dist/
+*.manifest
+*.spec
+
+# Windows:
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Other
+/[Tt][Ee][Mm][Pp]*
+/chrome_data/
