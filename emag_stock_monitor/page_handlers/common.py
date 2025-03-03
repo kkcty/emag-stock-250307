@@ -2,10 +2,10 @@
 
 from playwright.async_api import BrowserContext
 
-from ..constants.regex import LOGGER_JSON_API, BY_ZONE_POSITION_API
+from ..regexps import cart_page_track_routes
 
 
 async def block_emag_track(context: BrowserContext):
     """屏蔽 eMAG 的页面埋点"""
-    await context.route(LOGGER_JSON_API, lambda r: r.abort('aborted'))
-    await context.route(BY_ZONE_POSITION_API, lambda r: r.abort('aborted'))
+    for k, v in cart_page_track_routes.items():
+        await context.route(v, lambda r: r.abort())

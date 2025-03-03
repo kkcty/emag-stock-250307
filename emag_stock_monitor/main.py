@@ -9,7 +9,7 @@ from .logger import logger
 from .page_handlers.common import block_emag_track
 from .page_handlers.cart_page import (
     goto_cart_page,
-    remove_item_from_cart,
+    clean_cart,
 )
 from .page_handlers.list_page import (
     wait_page_load as wait_list_page_load,
