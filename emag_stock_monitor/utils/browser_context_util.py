@@ -1,4 +1,4 @@
-"""共通的页面处理器"""
+"""上下文工具"""
 
 from playwright.async_api import BrowserContext
 
