@@ -1,5 +1,6 @@
 """购物车页面所用 Xpath"""
 
+# BUG 卡片标签不对，定位不到捆绑产品
 LINE_ITEM_DETAILS_DIV = 'xpath=//div[@class="line-item-details"]'
 """单个产品卡片"""
 

@@ -12,7 +12,7 @@ CARD_ITEM_DIV_WITHOUT_PROMOVAT = (
 """产品卡片所在的 div 标签（跳过 Promovat）"""
 
 ADD_CART_BUTTON = (
-    'xpath='  # NOTICE 是不是没有 Vezi detalii 了？
+    'xpath='  # WARNING 是不是没有 "Vezi detalii" 了？
     '//div[starts-with(@class, "card-item")]'
     '[not(.//div[starts-with(@class, "card-v2-badge-cmp-holder")]/span[starts-with(@class, "card-v2-badge-cmp")])]'
     '//form/button'
