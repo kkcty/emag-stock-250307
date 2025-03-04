@@ -2,7 +2,7 @@
 
 from playwright.async_api import BrowserContext
 
-from ..regexps import cart_page_track_routes
+from emag_stock_monitor.regexps import cart_page_track_routes
 
 
 async def block_emag_track(context: BrowserContext):
