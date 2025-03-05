@@ -6,7 +6,7 @@ authors = [{ name = "kk119", email = "jdycty2002@163.com" }]
 readme = "README.md"
 requires-python = "^3.13"
 dependencies = [
-    "scraper-utils @ https://github.com/kuku119/scraper-utils/releases/download/v1.0.3/scraper_utils-1.0.3-py3-none-any.whl",
+    "scraper-utils @ https://github.com/kuku119/scraper-utils/releases/download/v1.0.4/scraper_utils-1.0.4-py3-none-any.whl",
     "loguru (>=0.7.3,<0.8.0)",
 ]
 
