@@ -43,13 +43,14 @@ async def main():
 
         input('打开产品列表页...')
         list_page = await bc.new_page()
-        await list_page.goto('https://www.emag.ro/masinute/c')
+        # await list_page.goto('https://www.emag.ro/masinute/c', wait_until='networkidle')
+        await list_page.goto('https://www.emag.ro/jocuri-societate/c', wait_until='networkidle')
         await wait_list_page_load(list_page)
 
         # TEMP
         # BUG 为什么是空的？
         for i in await add_to_cart(list_page):
-            print(i.url, i.qty)
+            print(i.as_dict())
 
         input('打开购物车页...')
         cart_page = await goto_cart_page(bc)

@@ -6,6 +6,7 @@ from time import perf_counter
 from playwright.async_api import Page
 from scraper_utils.constants.time_constant import MS1000
 from scraper_utils.exceptions.browser_exception import PlaywrightError
+from scraper_utils.utils.emag_util import parse_pnk
 
 from emag_stock_monitor.logger import logger
 from emag_stock_monitor.models import CartProducts
@@ -15,7 +16,9 @@ from emag_stock_monitor.page_handlers.cart_page import (
     parse_stock,
     wait_page_load as wait_cart_page_load,
 )
-from emag_stock_monitor.utils.parse_util import parse_pnk
+
+
+# TODO 可以创建一个轮询，隔一段时间就检查有无加购弹窗，有则关闭
 
 
 async def wait_page_load(page: Page, expect_count: int = 60, timeout: float = 10) -> bool:
@@ -40,7 +43,8 @@ async def wait_page_load(page: Page, expect_count: int = 60, timeout: float = 10
         card_item_without_promovat_div_count = await card_item_without_promovat_divs.count()
         logger.debug(f'找到 {card_item_without_promovat_div_count} 个 card_item_without_promovat_div')
         if card_item_without_promovat_div_count >= expect_count:
-            logger.success(
+            # BUG 有时会把 Promovat 算进来
+            logger.debug(
                 f'等待页面 "{page.url}" 加载成功，检测到 {card_item_without_promovat_div_count} 个商品'
             )
             return True
@@ -92,7 +96,7 @@ async def add_to_cart(page: Page, close_dialog_retry_count: int = 5) -> CartProd
     while added_count < add_cart_button_count:
         # 加购达到一定数量就打开购物车页面，统计已加购的产品
         if added_count == 40:
-            cart_page = await goto_cart_page(page.context)
+            cart_page = await goto_cart_page(page.context, 'networkidle')
             await wait_cart_page_load(cart_page)
             result += await parse_stock(cart_page)
             await clear_cart(cart_page)
@@ -118,7 +122,7 @@ async def add_to_cart(page: Page, close_dialog_retry_count: int = 5) -> CartProd
         # 如果点击加购成功了就等待关闭加购弹窗
         else:
             added_count += 1
-            logger.success(f'加购成功，当前成功加购至第 {added_count} 个')
+            logger.debug(f'加购成功，当前成功加购至第 {added_count} 个')
 
             # 点击关闭弹窗（失败时有重试次数）
             for _ in range(close_dialog_retry_count):
@@ -130,7 +134,7 @@ async def add_to_cart(page: Page, close_dialog_retry_count: int = 5) -> CartProd
                     break
 
     # 当整个页面的加购完成就打开购物车页面，统计已加购产品
-    cart_page = await goto_cart_page(page.context)
+    cart_page = await goto_cart_page(page.context, 'networkidle')
     await wait_cart_page_load(cart_page)
     result += await parse_stock(cart_page)
     await clear_cart(cart_page)

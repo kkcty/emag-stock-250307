@@ -1,8 +1,18 @@
 """数据模型"""
 
-from typing import Any, Iterable, Iterator, Optional, Self
+from typing import Any, Generator, Iterable, Iterator, Optional, Self, TypedDict
 
 from scraper_utils.utils.emag_util import build_product_url, validate_pnk
+
+
+_CartProductTypedDict = TypedDict(
+    '_CartProductTypedDict',
+    {
+        'pnk': str,
+        'url': str,
+        'qty': int,
+    },
+)
 
 
 class CartProduct:
@@ -15,7 +25,7 @@ class CartProduct:
         self.qty = qty
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(pnk="{self.pnk}", url="{self.url}")'
+        return f'{self.__class__.__name__}(pnk="{self.pnk}", qty={self.qty})'
 
     def __hash__(self) -> int:
         return hash(self.pnk)
@@ -28,66 +38,61 @@ class CartProduct:
         """产品详情页链接"""
         return build_product_url(pnk=self.pnk)
 
+    def as_dict(self) -> _CartProductTypedDict:
+        "转为字典"
+        return {
+            'pnk': self.pnk,
+            'url': self.url,
+            'qty': self.qty,
+        }
+
 
 class CartProducts:
     """购物车内的产品列表"""
 
-    def __init__(self, products: Optional[Iterable[CartProduct]] = None) -> None:
-        self.products: set[CartProduct] = set()
+    def __init__(self, products: Optional[Iterable[CartProduct]] = None):
+        self.__products: dict[str, CartProduct] = dict()
+        if products is not None:
+            for p in products:
+                self.add(p)
 
-        if products is None:
-            return
+    @property
+    def products(self) -> Generator[CartProduct]:
+        return (_ for _ in self.__products.values())
 
-        for np in products:
-            op = next((_ for _ in self.products if _ == np), None)
-            if op is not None and np.qty > op.qty:
-                self.products.remove(op)
-                self.products.add(np)
+    def add(self, np: CartProduct) -> None:
+        op = self.get(np.pnk)
+        if op is None or np.qty > op.qty:
+            self.__products[np.pnk] = np
 
-    def __contains__(self, x: Any) -> bool:
-        return isinstance(x, CartProduct) and x in self.products
+    def __add__(self, other: Self) -> Self:
+        result = self.__class__(self.__products.values())
+        for i in other.products:
+            result.add(i)
+        return result
 
-    def __iter__(self) -> Iterator[CartProduct]:
-        return iter(self.products)
+    def __iadd__(self, other: Self) -> Self:
+        for i in other.products:
+            self.add(i)
+        return self
 
     def get(self, p: str | CartProduct) -> Optional[CartProduct]:
-        match p:
-            case str():
-                p = CartProduct(p)
-            case CartProduct():
-                pass
-            case _:
-                raise TypeError
-        return next((_ for _ in self if _ == p), None)
+        p = p.pnk if isinstance(p, CartProduct) else p
+        return self.__products.get(p)
 
-    def add(self, x: CartProduct) -> None:
-        if not isinstance(x, CartProduct):
-            raise TypeError
+    def __contains__(self, p: str | CartProduct) -> bool:
+        p = p.pnk if isinstance(p, CartProduct) else p
+        return p in self.__products
 
-        old = self.get(x)
-        if old is not None and x.qty > old.qty:
-            self.products.remove(old)
-            self.products.add(x)
+    def remove(self, p: str | CartProduct) -> None:
+        p = p.pnk if isinstance(p, CartProduct) else p
+        self.__products.pop(p, None)
 
-    def __add__(self, other: Any) -> Self:
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-        result = CartProducts(_ for _ in self)
-        for x in other:
-            result.add(x)
-        return result  # type: ignore
+    def __iter__(self) -> Iterator[CartProduct]:
+        return self.products
 
-    def __radd__(self, other: Any) -> Self:
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-        result = CartProducts(_ for _ in self)
-        for x in other:
-            result.add(x)
-        return result  # type: ignore
+    def __len__(self) -> int:
+        return len(self.__products)
 
-    def __iadd__(self, other: Any) -> Self:
-        if not isinstance(other, self.__class__):
-            return NotImplemented
-        for x in other:
-            self.add(x)
-        return self
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(count={len(self)})'
