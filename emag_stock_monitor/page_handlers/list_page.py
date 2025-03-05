@@ -10,15 +10,7 @@ from scraper_utils.utils.emag_util import parse_pnk
 
 from emag_stock_monitor.logger import logger
 from emag_stock_monitor.models import CartProducts
-from emag_stock_monitor.page_handlers.cart_page import (
-    clear_cart,
-    goto_cart_page,
-    parse_stock,
-    wait_page_load as wait_cart_page_load,
-)
-
-
-# TODO 可以创建一个轮询，隔一段时间就检查有无加购弹窗，有则关闭
+from emag_stock_monitor.page_handlers.cart_page import handle_cart
 
 
 async def wait_page_load(page: Page, expect_count: int = 60, timeout: float = 10) -> bool:
@@ -43,7 +35,6 @@ async def wait_page_load(page: Page, expect_count: int = 60, timeout: float = 10
         card_item_without_promovat_div_count = await card_item_without_promovat_divs.count()
         logger.debug(f'找到 {card_item_without_promovat_div_count} 个 card_item_without_promovat_div')
         if card_item_without_promovat_div_count >= expect_count:
-            # BUG 有时会把 Promovat 算进来
             logger.debug(
                 f'等待页面 "{page.url}" 加载成功，检测到 {card_item_without_promovat_div_count} 个商品'
             )
@@ -58,11 +49,14 @@ async def add_to_cart(page: Page, close_dialog_retry_count: int = 5) -> CartProd
     """加购页面上的产品"""
     # NOTICE 购物车一次最多放 50 种产品
     # TODO 要不要主动检测购物车种类加购上限？
+    # TODO 要不改成加购前判断是否有弹窗，而不是现在的每次加购后等待弹窗？
 
     """
     记录加购成功的次数，每当计数达到上限就打开购物车页面统计各产品的最大加购数量，
     并在统计完成后清空购物车，然后继续加购
     """
+
+    # BUG
 
     result = CartProducts()
 
@@ -95,14 +89,8 @@ async def add_to_cart(page: Page, close_dialog_retry_count: int = 5) -> CartProd
     added_count = 0
     while added_count < add_cart_button_count:
         # 加购达到一定数量就打开购物车页面，统计已加购的产品
-        if added_count == 40:
-            cart_page = await goto_cart_page(page.context, 'networkidle')
-            await wait_cart_page_load(cart_page)
-            result += await parse_stock(cart_page)
-            await clear_cart(cart_page)
-            await cart_page.close()
-
-            return result  # TEMP
+        if added_count > 0 and added_count % 40 == 0:
+            result += await handle_cart(page.context)
 
         ##### 点击加购按钮，等待弹窗出现，点击关闭弹窗 #####
         try:
@@ -113,7 +101,6 @@ async def add_to_cart(page: Page, close_dialog_retry_count: int = 5) -> CartProd
                 '[not(.//div[starts-with(@class, "card-v2-badge-cmp-holder")]/span[starts-with(@class, "card-v2-badge-cmp")])]'
                 f'//form/button)[{added_count+1}]'
             ).click(timeout=MS1000)
-            # TODO 网络超时怎么办？
 
         # 如果点击加购失败了就重试
         except PlaywrightError as pe_add_cart:
@@ -134,11 +121,7 @@ async def add_to_cart(page: Page, close_dialog_retry_count: int = 5) -> CartProd
                     break
 
     # 当整个页面的加购完成就打开购物车页面，统计已加购产品
-    cart_page = await goto_cart_page(page.context, 'networkidle')
-    await wait_cart_page_load(cart_page)
-    result += await parse_stock(cart_page)
-    await clear_cart(cart_page)
-    await cart_page.close()
+    result += await handle_cart(page.context)
 
     await page.close()
 

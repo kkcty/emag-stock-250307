@@ -1,10 +1,10 @@
 """处理购物车页"""
 
-from time import perf_counter
 from typing import Literal, Optional
 
-from playwright.async_api import BrowserContext, Page, expect as pwr_expect
+from playwright.async_api import BrowserContext, Page
 from scraper_utils.exceptions.browser_exception import PlaywrightError
+from scraper_utils.utils.browser_util import wait_for_selector
 from scraper_utils.utils.emag_util import parse_pnk
 from scraper_utils.constants.time_constant import MS1000
 
@@ -19,56 +19,24 @@ async def goto_cart_page(
     timeout: Optional[int] = None,
 ) -> Page:
     """打开购物车页面"""
+    # WARNING 为什么用 networkidle 打开购物车页时，产品加载出来后仍然要等待一段时间？
     logger.info(f'打开购物车页')
     page = await context.new_page()
     await page.goto(CART_PAGE_URL, wait_until=wait_until, timeout=timeout)
     return page
 
 
-async def wait_page_load(page: Page, timeout: float = 30) -> bool:
+async def wait_page_load(page: Page, timeout: int = 30 * MS1000) -> bool:
     """等待页面加载完成（检测页面是否有商品）"""
-    # BUG 输出的都是“检测不到商品”
     logger.info('等待购物车页面加载...')
-    # vendors_item_div = page.locator('xpath=//div[@class="vendors-item fade in"]')
-    vendors_item_div = page.locator('xpath=//div[starts-with(@class,"vendors-item")]')
-
-    # start_time = perf_counter()
-    # while True:
-    #     try:
-    #         await vendors_item_div.wait_for(timeout=MS1000, state='attached')
-    #     except PlaywrightError:
-    #         if perf_counter() - start_time > timeout:
-    #             logger.warning('购物车页面检测不到商品')
-    #             return False
-    #     else:
-    #         logger.success('购物车页面检测到商品')
-    #         return True
-
-    start_time = perf_counter()
-    while True:
-        if perf_counter() - start_time > timeout:
-            logger.warning('购物车页面检测不到商品')
-            return False
-        if await page.locator('xpath=//div[starts-with(@class,"vendors-item")]').count() > 0:
-            logger.success('购物车页面检测到商品')
-            return True
-        await page.wait_for_timeout(MS1000)
-
-    # await pwr_expect(vendors_item_div).to_be_attached(timeout=MS1000)
-    # logger.success('购物车页面加载完毕')
+    return await wait_for_selector(
+        page=page, selector='xpath=//div[starts-with(@class,"vendors-item")]', timeout=timeout
+    )
 
 
-async def parse_stock(page: Page) -> CartProducts:
+async def parse_cart(page: Page) -> CartProducts:
     """统计购物车页面的所有产品的库存（最大可加购数）"""
-
-    ##### 单项商品 #####
-    '//div[@class="main-product-title-container"]/a'  # 商品链接
-    '//div[@class="main-product-title-container"]/ancestor::div[@class="line-item-details"]//input[@max]'  # 商品最大加购数
-
-    ##### 捆绑商品 #####
-    '//div[@class="line-item bundle-main d-flex "]//div[@class="bundle-item-title fw-semibold"]/a'  # 商品链接
-    '//div[@class="line-item bundle-main d-flex "]/ancestor::div[@class="cart-widget cart-line"]//input[@max]'  # 商品最大加购数
-
+    logger.info('解析购物车')
     result = CartProducts()
 
     single_item_count = await page.locator('xpath=//div[@class="main-product-title-container"]/a').count()
@@ -82,6 +50,7 @@ async def parse_stock(page: Page) -> CartProducts:
 
     # 解析单项商品
     for i in range(single_item_count):
+        logger.debug(f'解析单项商品 {i}')
         i_url_a = page.locator(f'xpath=(//div[@class="main-product-title-container"]/a)[{i+1}]')
         i_qty_input = page.locator(
             (
@@ -117,6 +86,87 @@ async def parse_stock(page: Page) -> CartProducts:
     return result
 
 
-async def clear_cart(page: Page):
+async def clear_cart(page: Page) -> None:
     """清空购物车"""
-    # TODO
+    logger.info('清空购物车')
+
+    # TODO 是否需要判断清空完成？
+    single_item_sterge_count = await page.locator(
+        (
+            'xpath=//div[@class="main-product-title-container"]/ancestor::'
+            'div[@class="line-item-details"]'
+            '//button[contains(@class, "btn-remove-product")]'
+        )
+        # (
+        #     'xpath=//div[@class="line-item line-item-footer d-none d-md-block"]'
+        #     '/div[@class="mb-1"]'
+        #     '/button[contains(@class, "btn-remove-product")]'
+        # )
+    ).count()
+    bundle_item_sterge_count = await page.locator(
+        (
+            'xpath=//div[@class="line-item bundle-main d-flex "]/ancestor::'
+            'div[@class="cart-widget cart-line"]'
+            '//button[contains(@class, "btn-remove-product")]'
+        )
+    ).count()
+    logger.debug(
+        f'找到 {single_item_sterge_count} 个单项商品 Sterge，{bundle_item_sterge_count} 个捆绑商品 Sterge'
+    )
+
+    # 解析单项商品
+    while single_item_sterge_count > 0:
+        logger.debug(f'尝试 Sterge 第 {single_item_sterge_count} 个单项商品')
+        try:
+            await page.locator(
+                (
+                    f'xpath=(//div[@class="line-item line-item-footer d-none d-md-block"]'
+                    f'/div[@class="mb-1"]'
+                    f'/button[contains(@class, "btn-remove-product")])[{single_item_sterge_count}]'
+                )
+            ).click(timeout=MS1000)
+        except PlaywrightError as pe:
+            logger.error(pe)
+        else:
+            logger.success(f'第 {single_item_sterge_count} 个单项商品 Sterge 成功')
+            single_item_sterge_count -= 1
+
+    # 解析捆绑商品
+    while bundle_item_sterge_count > 0:
+        logger.debug(f'尝试 Sterge 第 {bundle_item_sterge_count} 个捆绑商品')
+        try:
+            await page.locator(
+                (
+                    f'xpath=(//div[@class="line-item bundle-main d-flex "]/ancestor::'
+                    f'div[@class="cart-widget cart-line"]'
+                    f'//button[contains(@class, "btn-remove-product")])[{bundle_item_sterge_count}]'
+                )
+            ).click(timeout=MS1000)
+        except PlaywrightError as pe:
+            logger.error(pe)
+        else:
+            logger.success(f'第 {bundle_item_sterge_count} 个捆绑商品 Sterge 成功')
+            bundle_item_sterge_count -= 1
+
+
+async def handle_cart(context: BrowserContext) -> CartProducts:
+    """处理购物车
+
+    ---
+
+    * 打开购物车页面
+    * 等待页面加载
+    * 解析购物车数据
+    * 清空购物车
+    """
+
+    page = await goto_cart_page(context, wait_until='networkidle')
+    if not await wait_page_load(page):
+        logger.error('等待购物车页面加载失败')
+        raise RuntimeError
+
+    result = await parse_cart(page)
+    await clear_cart(page)
+    await page.close()
+
+    return result

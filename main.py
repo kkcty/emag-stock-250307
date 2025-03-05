@@ -3,13 +3,15 @@ from pathlib import Path
 from time import perf_counter
 
 from scraper_utils.utils.browser_util import BrowserManager, ResourceType, MS1000
+from scraper_utils.utils.json_util import write_json
 
 from emag_stock_monitor.logger import logger
-from emag_stock_monitor.page_handlers.cart_page import goto_cart_page, wait_page_load as wait_cart_page_load
 from emag_stock_monitor.page_handlers.list_page import add_to_cart, wait_page_load as wait_list_page_load
 from emag_stock_monitor.utils.browser_util import block_emag_track
 
+# TODO 需要提高健壮性
 # TODO 怎么检测验证码？
+# TODO 网络超时怎么办？
 
 CWD = Path.cwd()
 user_data_dir = CWD.joinpath('chrome_data')
@@ -39,24 +41,21 @@ async def main():
         )
         await block_emag_track(bc)
 
-        # TODO
-
         input('打开产品列表页...')
         list_page = await bc.new_page()
-        # await list_page.goto('https://www.emag.ro/masinute/c', wait_until='networkidle')
-        await list_page.goto('https://www.emag.ro/jocuri-societate/c', wait_until='networkidle')
+        # await list_page.goto('https://www.emag.ro/jocuri-societate/c', wait_until='networkidle')
+        await list_page.goto('https://www.emag.ro/vendors/vendor/dbtmrgei', wait_until='networkidle')
         await wait_list_page_load(list_page)
 
-        # TEMP
-        # BUG 为什么是空的？
-        for i in await add_to_cart(list_page):
-            print(i.as_dict())
+        result = await add_to_cart(list_page)
+        await write_json(
+            file=CWD.joinpath('result.json'),
+            data=list(_.as_dict() for _ in result),
+            async_mode=True,
+            indent=4,
+        )
 
-        input('打开购物车页...')
-        cart_page = await goto_cart_page(bc)
-        await wait_cart_page_load(cart_page)
-
-        input('结束程序...')
+        # input('结束程序...')
 
     ##########
 
