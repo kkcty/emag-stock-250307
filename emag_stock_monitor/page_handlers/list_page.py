@@ -1,69 +1,128 @@
-"""产品列表页"""
+"""处理产品列表页"""
 
-import asyncio
-from random import randint, uniform
+from random import randint
 from time import perf_counter
 
-from playwright.async_api import Locator, Page
+from playwright.async_api import Page
 from scraper_utils.constants.time_constant import MS1000
 from scraper_utils.exceptions.browser_exception import PlaywrightError
-from scraper_utils.utils.file_util import read_file
-from ..constants.xpath import (
-    LIST_PAGE_CARD_ITEM_WITHOUT_PROMOVAT_DIV_XPATH,
-    LIST_PAGE_ADD_CART_BUTTON_XPATH,
-    LIST_PAGE_ADD_CART_DIALOG_CLOSE_BUTTON_XPATH,
-)
-from ..logger import logger
+from scraper_utils.utils.emag_util import parse_pnk
+
+from emag_stock_monitor.logger import logger
+from emag_stock_monitor.models import CartProducts
+from emag_stock_monitor.page_handlers.cart_page import handle_cart
 
 
-async def wait_page_load(page: Page, expect_count: int = 60, timeout: float = 10):
-    """等待页面加载完毕（等待出现足够数量的不带 Promovat 的 card-item）"""
-    logger.debug(f'开始等待产品列表页加载完毕 "{page.url}"')
+async def wait_page_load(page: Page, expect_count: int = 60, timeout: float = 10) -> bool:
+    """等待页面加载完成（等待加载出足够数量的产品卡片）"""
+    logger.info(f'等待页面 "{page.url}" 加载...')
     start_time = perf_counter()
+
     while True:
-        card_item_tags = page.locator(LIST_PAGE_CARD_ITEM_WITHOUT_PROMOVAT_DIV_XPATH)
-        count = await card_item_tags.count()
+        # 超时退出
+        if perf_counter() - start_time > timeout:
+            logger.error(f'等待页面 "{page.url}" 加载失败，时间超时')
+            return False
 
-        # 数量达标就退出
-        if count >= expect_count:
-            break
+        # 统计产品卡片数量
+        card_item_without_promovat_divs = page.locator(
+            (
+                'xpath='
+                '//div[starts-with(@class, "card-item")]'
+                '[not(.//div[starts-with(@class, "card-v2-badge-cmp-holder")]/span[starts-with(@class, "card-v2-badge-cmp")])]'
+            ),
+        )
+        card_item_without_promovat_div_count = await card_item_without_promovat_divs.count()
+        logger.debug(f'找到 {card_item_without_promovat_div_count} 个 card_item_without_promovat_div')
+        if card_item_without_promovat_div_count >= expect_count:
+            logger.debug(
+                f'等待页面 "{page.url}" 加载成功，检测到 {card_item_without_promovat_div_count} 个商品'
+            )
+            return True
 
-        # 模拟鼠标向下滚动
-        await page.mouse.wheel(delta_x=0, delta_y=randint(500, 1000))
-        await page.wait_for_timeout(uniform(0, 0.5) * MS1000)
-
-        # 时间超时就退出
-        if perf_counter() - start_time >= timeout:
-            break
-    logger.success(f'产品列表页加载完毕 "{page.url}"')
-    return count
+        # 模拟鼠标滑动
+        await page.mouse.wheel(delta_x=0, delta_y=randint(200, 1000))
+        await page.wait_for_timeout(randint(0, 500))
 
 
-async def add_item_to_cart(page: Page, card_item_tag_count: int):
-    """把页面内的所有产品加入到购物车（跳过 Promovat）"""
-    # # TODO 要不改成每点击一次购物车就等待弹窗出现，等关闭弹窗了再点击下一个？
-    # BUG 如果没弹出加购弹窗会在关闭加购弹窗处卡住
-    # NOTICE 购物车一次只能放 50 个产品
-    while card_item_tag_count > 0:
+async def add_to_cart(page: Page, close_dialog_retry_count: int = 5) -> CartProducts:
+    """加购页面上的产品"""
+    # NOTICE 购物车一次最多放 50 种产品
+    # TODO 要不要主动检测购物车种类加购上限？
+    # TODO 要不改成加购前判断是否有弹窗，而不是现在的每次加购后等待弹窗？
+
+    """
+    记录加购成功的次数，每当计数达到上限就打开购物车页面统计各产品的最大加购数量，
+    并在统计完成后清空购物车，然后继续加购
+    """
+
+    # BUG
+
+    result = CartProducts()
+
+    # 去除 Promovat、有加购按钮的 card-item
+    add_cart_able_card_item_without_promovat_divs = page.locator(
+        '//div[starts-with(@class, "card-item")]'
+        '[not(.//div[starts-with(@class, "card-v2-badge-cmp-holder")]/span[starts-with(@class, "card-v2-badge-cmp")])'
+        ' and .//form/button]'
+    )
+    # 产品 pnk 列表
+    pnks: list[str] = [
+        parse_pnk(await div.get_attribute('data-url', timeout=MS1000))  # type: ignore
+        for div in await add_cart_able_card_item_without_promovat_divs.all()
+    ]
+    # 去除 Promovat 的加购按钮
+    add_cart_buttons = page.locator(
+        (
+            'xpath='
+            '//div[starts-with(@class, "card-item")]'
+            '[not(.//div[starts-with(@class, "card-v2-badge-cmp-holder")]/span[starts-with(@class, "card-v2-badge-cmp")])]'
+            '//form/button'
+        ),
+    )
+    # 统计页面上的加购按钮总数
+    add_cart_button_count = await add_cart_buttons.count()
+
+    if add_cart_button_count != len(pnks):
+        logger.error(f'解析到的 pnk 总数 {len(pnks)} 与加购按钮总数 {add_cart_button_count} 不同')
+
+    added_count = 0
+    while added_count < add_cart_button_count:
+        # 加购达到一定数量就打开购物车页面，统计已加购的产品
+        if added_count > 0 and added_count % 40 == 0:
+            result += await handle_cart(page.context)
+
+        ##### 点击加购按钮，等待弹窗出现，点击关闭弹窗 #####
         try:
+            # 点击加购按钮
             await page.locator(
-                f'xpath=//div[(@class="card-item card-standard js-product-data js-card-clickable " or '
-                f'@class="card-item card-fashion js-product-data js-card-clickable") and @data-url!=""]'
-                f'[not(.//span[@class="card-v2-badge-cmp badge bg-light bg-opacity-90 text-neutral-darkest"])'
-                f' and .//form]'
-                f'[{card_item_tag_count}]'
-                f'//button[@class="btn btn-sm btn-emag btn-block yeahIWantThisProduct"]'
-            ).click()
-        except PlaywrightError as pe_1:
-            logger.error(f'点击加购时出错\n{pe_1}')
-            continue
+                'xpath='
+                '(//div[starts-with(@class, "card-item")]'
+                '[not(.//div[starts-with(@class, "card-v2-badge-cmp-holder")]/span[starts-with(@class, "card-v2-badge-cmp")])]'
+                f'//form/button)[{added_count+1}]'
+            ).click(timeout=MS1000)
+
+        # 如果点击加购失败了就重试
+        except PlaywrightError as pe_add_cart:
+            logger.error(f'尝试点击加购按钮失败\n{pe_add_cart}')
+
+        # 如果点击加购成功了就等待关闭加购弹窗
         else:
-            while True:
+            added_count += 1
+            logger.debug(f'加购成功，当前成功加购至第 {added_count} 个')
+
+            # 点击关闭弹窗（失败时有重试次数）
+            for _ in range(close_dialog_retry_count):
                 try:
-                    await page.locator(LIST_PAGE_ADD_CART_DIALOG_CLOSE_BUTTON_XPATH).click()
-                except PlaywrightError as pe_2:
-                    logger.error(f'点击关闭加购弹窗时出错\n{pe_2}')
+                    await page.locator('xpath=//button[@class="close gtm_6046yfqs"]').click()
+                except PlaywrightError as pe_close_dialog:
+                    logger.error(f'尝试关闭加购弹窗失败\n{pe_close_dialog}')
                 else:
                     break
-            logger.debug(f'成功加购，剩余 {card_item_tag_count} 个')
-            card_item_tag_count -= 1
+
+    # 当整个页面的加购完成就打开购物车页面，统计已加购产品
+    result += await handle_cart(page.context)
+
+    await page.close()
+
+    return result
