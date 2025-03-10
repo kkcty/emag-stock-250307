@@ -889,13 +889,13 @@ dev = ["black", "build", "flake8", "flake8-black", "isort", "jupyter-console", "
 
 [[package]]
 name = "scraper-utils"
-version = "1.0.4"
+version = "1.0.5"
 description = "爬虫所需工具"
 optional = false
 python-versions = "^3.13"
 groups = ["main"]
 files = [
-    {file = "scraper_utils-1.0.4-py3-none-any.whl", hash = "sha256:a5a9e5402c6df12b30553dbf073238f434fcef28af1bb41aa27310c6622c3397"},
+    {file = "scraper_utils-1.0.5-py3-none-any.whl", hash = "sha256:59846acd3a475ad92445afb9f64a5909cbd711cb6072908388fef721acdd2c50"},
 ]
 
 [package.dependencies]
@@ -908,7 +908,7 @@ tf-playwright-stealth = ">=1.1.1,<2.0.0"
 
 [package.source]
 type = "url"
-url = "https://github.com/kuku119/scraper-utils/releases/download/v1.0.4/scraper_utils-1.0.4-py3-none-any.whl"
+url = "https://github.com/kuku119/scraper-utils/releases/download/v1.0.5/scraper_utils-1.0.5-py3-none-any.whl"
 
 [[package]]
 name = "tf-playwright-stealth"
@@ -1054,4 +1054,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "2efdbb87e2269559b3952f73ca9266b424043fdc722e0424a027286b0222991b"
+content-hash = "ef8d841c55a772c62c295020135dc781fed5a5180cfd0e4df1300d44c8d156c6"
