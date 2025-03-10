@@ -3,6 +3,7 @@ from pathlib import Path
 from time import perf_counter
 
 from scraper_utils.utils.browser_util import BrowserManager, ResourceType, MS1000
+from scraper_utils.utils.file_util import read_file
 from scraper_utils.utils.json_util import write_json
 
 from emag_stock_monitor.logger import logger
@@ -14,9 +15,14 @@ from emag_stock_monitor.utils.browser_util import block_emag_track
 # TODO 网络超时怎么办？
 
 CWD = Path.cwd()
+
+# 浏览器
 user_data_dir = CWD.joinpath('chrome_data')
 executable_path = 'C:/Program Files/Google/Chrome/Application/chrome.exe'
 abort_res_types = (ResourceType.IMAGE, ResourceType.FONT, ResourceType.MEDIA)
+
+# 隐藏 cookie 提示
+hide_cookie_banner_js = read_file(file=CWD.joinpath('js/hide-cookie-banner.js'), mode='str', async_mode=False)
 
 
 async def main():
@@ -38,6 +44,7 @@ async def main():
             need_stealth=True,
             default_timeout=60 * MS1000,
             default_navigation_timeout=60 * MS1000,
+            add_init_script=hide_cookie_banner_js,
         )
         await block_emag_track(bc)
 
@@ -45,8 +52,8 @@ async def main():
         list_page = await bc.new_page()
         # await list_page.goto('https://www.emag.ro/jocuri-societate/c', wait_until='networkidle')
         # await list_page.goto('https://www.emag.ro/vendors/vendor/visionvt', wait_until='networkidle')
-        await list_page.goto('https://www.emag.ro/vendors/vendor/yrisfprk', wait_until='networkidle')
-        # await list_page.goto('https://www.emag.ro/vendors/vendor/dbtmrgei', wait_until='networkidle')
+        # await list_page.goto('https://www.emag.ro/vendors/vendor/yrisfprk', wait_until='networkidle')
+        await list_page.goto('https://www.emag.ro/vendors/vendor/dbtmrgei', wait_until='networkidle')
         await wait_list_page_load(list_page)
 
         result = await add_to_cart(list_page)

@@ -7,6 +7,7 @@ requires-python = "^3.13"
 dependencies = [
     "loguru (>=0.7.3,<0.8.0)",
     "scraper-utils @ https://github.com/kuku119/scraper-utils/releases/download/v1.0.5/scraper_utils-1.0.5-py3-none-any.whl",
+    "pandas (>=2.2.3,<3.0.0)",
 ]
 
 [tool.poetry]
@@ -14,6 +15,13 @@ package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
+jupyter = "^1.1.1"
+
+
+[[tool.poetry.source]]
+name = "tsinghua"
+url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/"
+priority = "primary"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
