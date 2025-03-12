@@ -97,6 +97,7 @@ async def parse_cart(page: Page) -> CartProducts:
 async def clear_cart(page: Page) -> None:
     """清空购物车"""
     # WARNING 尝试点击第一个 Sterge 时需要重试很多次才会成功
+    # TODO 修改成检测页面是否 sterge 按钮，有则点击
     logger.info('清空购物车')
 
     # TODO 是否需要判断清空完成？
@@ -106,11 +107,6 @@ async def clear_cart(page: Page) -> None:
             'div[@class="line-item-details"]'
             '//button[contains(@class, "btn-remove-product")]'
         )
-        # (
-        #     'xpath=//div[@class="line-item line-item-footer d-none d-md-block"]'
-        #     '/div[@class="mb-1"]'
-        #     '/button[contains(@class, "btn-remove-product")]'
-        # )
     ).count()
     bundle_item_sterge_count = await page.locator(
         (
