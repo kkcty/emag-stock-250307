@@ -56,8 +56,6 @@ async def add_to_cart(page: Page, close_dialog_retry_count: int = 5) -> CartProd
     并在统计完成后清空购物车，然后继续加购
     """
 
-    # BUG
-
     result = CartProducts()
 
     # 去除 Promovat、有加购按钮的 card-item

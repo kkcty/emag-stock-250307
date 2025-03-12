@@ -37,7 +37,8 @@ async def main():
         channel='chrome',
         headless=False,
         slow_mo=1 * MS1000,
-        args=['--window-size=1000,750'],
+        # args=['--window-size=1000,750'],
+        args=['--start-maximized'],
     ) as bm:
         bc = await bm.new_context(
             abort_res_types=abort_res_types,
@@ -48,12 +49,10 @@ async def main():
         )
         await block_emag_track(bc)
 
-        input('打开产品列表页...')
         list_page = await bc.new_page()
-        # await list_page.goto('https://www.emag.ro/jocuri-societate/c', wait_until='networkidle')
-        # await list_page.goto('https://www.emag.ro/vendors/vendor/visionvt', wait_until='networkidle')
-        # await list_page.goto('https://www.emag.ro/vendors/vendor/yrisfprk', wait_until='networkidle')
-        await list_page.goto('https://www.emag.ro/vendors/vendor/dbtmrgei', wait_until='networkidle')
+        # await list_page.goto('https://www.emag.ro/accesorii-fitness/c',wait_until='networkidle')
+        # await list_page.goto('https://www.emag.ro/accesorii-fitness/p2/c',wait_until='networkidle')
+        await list_page.goto('https://www.emag.ro/accesorii-fitness/p3/c', wait_until='networkidle')
         await wait_list_page_load(list_page)
 
         result = await add_to_cart(list_page)
@@ -63,8 +62,6 @@ async def main():
             async_mode=True,
             indent=4,
         )
-
-        # input('结束程序...')
 
     ##########
 
