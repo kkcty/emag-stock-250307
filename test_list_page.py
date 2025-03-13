@@ -25,10 +25,9 @@ async def main():
             default_timeout=60 * MS1000,
         )
         page = await context.new_page()
-        await page.goto('https://www.emag.ro/accesorii-fitness/c')
+        await page.goto('https://www.emag.ro/jocuri-societate/c')
         await wait_page_load(page)
         result = await add_to_cart(page)
-        # print(result)
         result_save_path = write_json(
             'result.json',
             data=list(_.as_dict() for _ in result),
