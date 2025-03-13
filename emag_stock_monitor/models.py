@@ -33,37 +33,61 @@ class ListPageProduct:
     """
 
     def __init__(self, pnk: str, source_url: str, rank: int, qty: Optional[int] = None) -> None:
-        if not validate_pnk(pnk=pnk):
-            raise ValueError(f'"{pnk}" 不符合 pnk 规则')
-        if rank < 1:
-            raise ValueError('rank 需为正整数')
-        if qty is not None and qty < 1:
-            raise ValueError(f'qty 如不为空，则必须为正整数')
         self.pnk = pnk
         self.source_url = source_url
         self.rank = rank
         self.qty = qty
 
     @property
+    def pnk(self) -> str:
+        return self._pnk
+
+    @pnk.setter
+    def pnk(self, pnk: str) -> None:
+        if not validate_pnk(pnk=pnk):
+            raise ValueError(f'"{pnk}" 不符合 pnk 规则')
+        self._pnk = pnk
+
+    @property
+    def rank(self) -> int:
+        return self._rank
+
+    @rank.setter
+    def rank(self, rank: int) -> None:
+        if rank < 1:
+            raise ValueError('rank 需为正整数')
+        self._rank = rank
+
+    @property
+    def qty(self) -> Optional[int]:
+        return self._qty
+
+    @qty.setter
+    def qty(self, qty: Optional[int]) -> None:
+        if qty is not None and qty < 1:
+            raise ValueError(f'qty 如不为空，则必须为正整数')
+        self._qty = qty
+
+    @property
     def url(self) -> str:
-        return build_product_url(pnk=self.pnk)
+        return build_product_url(pnk=self._pnk)
 
     def __eq__(self, other) -> bool:
         return (
             isinstance(other, self.__class__)
-            and self.pnk == other.pnk
+            and self._pnk == other._pnk
             and self.source_url == other.source_url
         )
 
     def __hash__(self) -> int:
-        return hash((self.pnk, self.source_url))
+        return hash((self._pnk, self.source_url))
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(pnk="{self.pnk}", origin_url="{self.source_url}", qty={self.qty})'
+        return f'{self.__class__.__name__}(pnk="{self._pnk}", origin_url="{self.source_url}", qty={self.qty}, rank={self.rank})'
 
     def as_dict(self) -> _ProductTypedDict:
         return {
-            'pnk': self.pnk,
+            'pnk': self._pnk,
             'source_url': self.source_url,
             'rank': self.rank,
             'qty': self.qty,
@@ -73,6 +97,8 @@ class ListPageProduct:
 
 class Products:
     """产品集合"""
+
+    # FIXME 需要添加一个修改 qty 的功能
 
     def __init__(self, products: Optional[Iterable[ListPageProduct]] = None) -> None:
         if products is None:
@@ -88,7 +114,7 @@ class Products:
         if self.__modified is False:  # 如果 __products 没被修改那就直接返回 __products
             return self.__products
 
-        temp = set(i for i in sorted(self.__products, key=lambda p: (p.pnk, p.source_url, p.rank)))
+        temp = set(i for i in sorted(self.__products, key=lambda p: (p._pnk, p.source_url, p.rank)))
         result = list(sorted(temp, key=lambda p: (p.source_url, p.rank)))
         self.__products = result
         self.__modified = False
@@ -106,19 +132,7 @@ class Products:
 
     def have_pnk(self, pnk: str) -> bool:
         """检测产品列表中有无该 pnk"""
-        return validate_pnk(pnk=pnk) and any(p.pnk == pnk for p in self)
-
-    def __getitem__(self, pnk: str):
-        """用 pnk 从产品列表中获取产品"""
-        # TODO
-
-    def __setitem__(self, pnk: str, value: ListPageProduct):
-        """用 pnk 从产品列表中修改目标产品"""
-        # TODO
-
-    def __delitem__(self, pnk: str):
-        """用 pnk 从产品列表中删除产品"""
-        # TODO
+        return validate_pnk(pnk=pnk) and any(p._pnk == pnk for p in self)
 
     def __add__(self, other) -> Self:
         if not isinstance(other, self.__class__):

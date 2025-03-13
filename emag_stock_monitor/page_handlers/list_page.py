@@ -15,6 +15,9 @@ from emag_stock_monitor.logger import logger
 from emag_stock_monitor.models import ListPageProduct, Products
 from emag_stock_monitor.page_handlers.cart_page import handle_cart
 
+# TODO 需要检测验证码
+# /html/body[contains(@class,"captcha")]
+
 
 async def wait_page_load(page: Page, expect_count: int = 60, timeout: float = 10) -> bool:
     """等待页面加载完成（等待加载出足够数量的产品卡片）"""
@@ -58,7 +61,8 @@ _add_cart_lock = Lock()
 async def add_to_cart(page: Page) -> Products:
     """加购页面上的产品"""
     # WARNING 购物车一次最多放 50 种产品
-    # TODO 要不要主动检测购物车种类加购上限？
+
+    # BUG 结果的 qty 都是 None
 
     # 整页的产品
     total_result = Products()
@@ -151,9 +155,10 @@ async def add_to_cart(page: Page) -> Products:
 
 async def check_cart_dialog(page: Page, interval: int = 1000):
     """每间隔 `interval` 毫秒检测一次页面有无加购弹窗，有则点击关闭"""
+    logger.info('启动检测加购弹窗任务...')
     while True:
         if page.is_closed():
-            logger.debug('页面关闭，监测加购弹窗任务即将停止')
+            logger.debug('检测到页面关闭，检测加购弹窗任务即将停止')
             break
         dialog_close_button = page.locator('xpath=//button[@class="close gtm_6046yfqs"]')
         async with _add_cart_lock:
