@@ -8,46 +8,54 @@ from scraper_utils.utils.browser_util import wait_for_selector
 from scraper_utils.utils.emag_util import parse_pnk
 from scraper_utils.constants.time_constant import MS1000
 
+from emag_stock_monitor.exceptions import GotoCartPageError
 from emag_stock_monitor.logger import logger
-from emag_stock_monitor.models import CartProduct, CartProducts
+from emag_stock_monitor.models import ListPageProduct, Products
 from emag_stock_monitor.urls import CART_PAGE_URL
 
 
 async def goto_cart_page(
     context: BrowserContext,
     wait_until: Literal['commit', 'domcontentloaded', 'load', 'networkidle'] = 'load',
+    retry_count: int = 3,
     timeout: Optional[int] = None,
 ) -> Page:
     """打开购物车页面"""
     # WARNING 为什么用 networkidle 打开购物车页时，产品加载出来后仍然要等待一段时间？
-    logger.info(f'打开购物车页')
+    logger.info(f'打开购物车页...')
     page = await context.new_page()
-    await page.goto(CART_PAGE_URL, wait_until=wait_until, timeout=timeout)
+    for i in range(retry_count):
+        logger.debug(f'第 {i+1} 次尝试打开购物车页')
+        try:
+            await page.goto(CART_PAGE_URL, wait_until=wait_until, timeout=timeout)
+        except PlaywrightError as pe:
+            logger.error(f'尝试打开购物车页时出错\n{pe}')
+            continue
+        else:
+            break
+    else:
+        logger.error(f'尝试 {retry_count} 次后仍无法打开购物车页')
+        raise GotoCartPageError
+
     return page
 
 
 async def wait_page_load(page: Page, timeout: int = 30 * MS1000) -> bool:
     """等待页面加载完成（检测页面是否有商品）"""
-    logger.info('等待购物车页面加载...')
-    return await wait_for_selector(
-        # page=page, selector='xpath=//div[starts-with(@class,"vendors-item")]', timeout=timeout
-        page=page,
-        selector='xpath=//input[@max]',
-        timeout=timeout,
-    )
+    logger.info('等待购物车页加载...')
+    return await wait_for_selector(page=page, selector='xpath=//input[@max]', timeout=timeout)
 
 
-async def parse_cart(page: Page) -> CartProducts:
+async def parse_cart(page: Page, target_products: Products) -> Products:
     """统计购物车页面的所有产品的库存（最大可加购数）"""
     logger.info('解析购物车')
-    result = CartProducts()
+
+    # TODO 根据 target_products 来提取对应 pnk 的 qty
+    target_products[1]
 
     single_item_count = await page.locator('xpath=//div[@class="main-product-title-container"]/a').count()
     bundle_item_count = await page.locator(
-        (
-            'xpath=//div[@class="line-item bundle-main d-flex "]'
-            '//div[@class="bundle-item-title fw-semibold"]/a'
-        )
+        ('xpath=//div[@class="line-item bundle-main d-flex "]//div[@class="bundle-item-title fw-semibold"]/a')
     ).count()
     logger.debug(f'找到 {single_item_count} 个单项商品，{bundle_item_count} 个捆绑商品')
 
@@ -57,8 +65,7 @@ async def parse_cart(page: Page) -> CartProducts:
         i_url_a = page.locator(f'xpath=(//div[@class="main-product-title-container"]/a)[{i+1}]')
         i_qty_input = page.locator(
             (
-                f'xpath=(//div[@class="main-product-title-container"]'
-                f'/ancestor::div[@class="line-item-details"]//input[@max])[{i+1}]'
+                f'xpath=(//div[@class="main-product-title-container"]/ancestor::div[@class="line-item-details"]//input[@max])[{i+1}]'
             )
         )
         i_pnk: str = parse_pnk(await i_url_a.get_attribute('href', timeout=MS1000))  # type: ignore
@@ -154,7 +161,7 @@ async def clear_cart(page: Page) -> None:
             bundle_item_sterge_count -= 1
 
 
-async def handle_cart(context: BrowserContext) -> CartProducts:
+async def handle_cart(context: BrowserContext, added_products: Products) -> Products:
     """处理购物车
 
     ---

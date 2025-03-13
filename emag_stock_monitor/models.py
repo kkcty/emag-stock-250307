@@ -1,98 +1,148 @@
 """数据模型"""
 
-from typing import Any, Generator, Iterable, Iterator, Optional, Self, TypedDict
+from typing import Iterable, Iterator, Optional, TypedDict, Self
 
 from scraper_utils.utils.emag_util import build_product_url, validate_pnk
 
 
-_CartProductTypedDict = TypedDict(
-    '_CartProductTypedDict',
-    {
-        'pnk': str,
-        'url': str,
-        'qty': int,
-    },
-)
+class _ProductTypedDict(TypedDict):
+    pnk: str
+    source_url: str
+    rank: int
+    qty: Optional[int]
+    url: str
 
 
-class CartProduct:
-    """购物车内的产品"""
+class ListPageProduct:
+    """
+    产品列表页上的一个产品
 
-    def __init__(self, pnk: str, qty: int = 0):
+    ---
+
+    * `pnk`
+    * `source_url`: 该产品来自哪个产品列表页
+    * `rank`: 该产品在其来源产品列表页上的序号（从 1 开始）
+    * `qty`: 产品最大可加购数（`None` 或正整数）
+    * `url`: 产品详情页链接
+
+    ---
+
+    pnk 和 source_url 都相同的会被认为是同一个产品
+
+    <b>WARNING rank 不同的该怎么办？</b>
+    """
+
+    def __init__(self, pnk: str, source_url: str, rank: int, qty: Optional[int] = None) -> None:
         if not validate_pnk(pnk=pnk):
             raise ValueError(f'"{pnk}" 不符合 pnk 规则')
+        if rank < 1:
+            raise ValueError('rank 需为正整数')
+        if qty is not None and qty < 1:
+            raise ValueError(f'qty 如不为空，则必须为正整数')
         self.pnk = pnk
+        self.source_url = source_url
+        self.rank = rank
         self.qty = qty
-
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(pnk="{self.pnk}", qty={self.qty})'
-
-    def __hash__(self) -> int:
-        return hash(self.pnk)
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, self.__class__) and self.pnk == other.pnk
 
     @property
     def url(self) -> str:
-        """产品详情页链接"""
         return build_product_url(pnk=self.pnk)
 
-    def as_dict(self) -> _CartProductTypedDict:
-        "转为字典"
+    def __eq__(self, other) -> bool:
+        return (
+            isinstance(other, self.__class__)
+            and self.pnk == other.pnk
+            and self.source_url == other.source_url
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.pnk, self.source_url))
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(pnk="{self.pnk}", origin_url="{self.source_url}", qty={self.qty})'
+
+    def as_dict(self) -> _ProductTypedDict:
         return {
             'pnk': self.pnk,
-            'url': self.url,
+            'source_url': self.source_url,
+            'rank': self.rank,
             'qty': self.qty,
+            'url': self.url,
         }
 
 
-class CartProducts:
-    """购物车内的产品列表"""
+class Products:
+    """产品集合"""
 
-    def __init__(self, products: Optional[Iterable[CartProduct]] = None):
-        self.__products: dict[str, CartProduct] = dict()
-        if products is not None:
-            for p in products:
-                self.add(p)
+    def __init__(self, products: Optional[Iterable[ListPageProduct]] = None) -> None:
+        if products is None:
+            products = list()
+        self.__products = list(products)
+        self.__modified: bool = True
 
     @property
-    def products(self) -> Generator[CartProduct]:
-        return (_ for _ in self.__products.values())
+    def products(self) -> list[ListPageProduct]:
+        # 按照 source_url-rank 的顺序对产品进行排序，
+        # 顺便对于重复的产品，取其 rank 最小的保留，其余去除
 
-    def add(self, np: CartProduct) -> None:
-        op = self.get(np.pnk)
-        if op is None or np.qty > op.qty:
-            self.__products[np.pnk] = np
+        if self.__modified is False:  # 如果 __products 没被修改那就直接返回 __products
+            return self.__products
 
-    def __add__(self, other: Self) -> Self:
-        result = self.__class__(self.__products.values())
-        for i in other.products:
-            result.add(i)
+        temp = set(i for i in sorted(self.__products, key=lambda p: (p.pnk, p.source_url, p.rank)))
+        result = list(sorted(temp, key=lambda p: (p.source_url, p.rank)))
+        self.__products = result
+        self.__modified = False
+        return self.__products
+
+    def append(self, value: ListPageProduct) -> None:
+        """添加一个元素"""
+        self.__products.append(value)
+        self.__modified = True
+
+    def appends(self, *values: ListPageProduct) -> None:
+        """添加多个元素"""
+        for v in values:
+            self.append(v)
+
+    def have_pnk(self, pnk: str) -> bool:
+        """检测产品列表中有无该 pnk"""
+        return validate_pnk(pnk=pnk) and any(p.pnk == pnk for p in self)
+
+    def __getitem__(self, pnk: str):
+        """用 pnk 从产品列表中获取产品"""
+        # TODO
+
+    def __setitem__(self, pnk: str, value: ListPageProduct):
+        """用 pnk 从产品列表中修改目标产品"""
+        # TODO
+
+    def __delitem__(self, pnk: str):
+        """用 pnk 从产品列表中删除产品"""
+        # TODO
+
+    def __add__(self, other) -> Self:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        result = self.__class__(products=self.products + other.products)
         return result
 
-    def __iadd__(self, other: Self) -> Self:
-        for i in other.products:
-            self.add(i)
+    def __iadd__(self, other) -> Self:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        sp = self.products
+        op = other.products
+        self.__products = sp + op
+        self.__modified = True
         return self
 
-    def get(self, p: str | CartProduct) -> Optional[CartProduct]:
-        p = p.pnk if isinstance(p, CartProduct) else p
-        return self.__products.get(p)
+    def __iter__(self) -> Iterator[ListPageProduct]:
+        return iter(self.products)
 
-    def __contains__(self, p: str | CartProduct) -> bool:
-        p = p.pnk if isinstance(p, CartProduct) else p
-        return p in self.__products
-
-    def remove(self, p: str | CartProduct) -> None:
-        p = p.pnk if isinstance(p, CartProduct) else p
-        self.__products.pop(p, None)
-
-    def __iter__(self) -> Iterator[CartProduct]:
-        return self.products
+    def __contains__(self, value: ListPageProduct) -> bool:
+        return value in self.products
 
     def __len__(self) -> int:
-        return len(self.__products)
+        return len(self.products)
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(count={len(self)})'
+        return f'{self.__class__.__name__}(count="{len(self)}")'
