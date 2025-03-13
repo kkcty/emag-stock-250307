@@ -1,3 +1,5 @@
+"""测试购物车页的解析器"""
+
 import asyncio
 from pathlib import Path
 
@@ -18,9 +20,13 @@ async def main():
         abort_res_types=(ResourceType.MEDIA, ResourceType.IMAGE),
         default_navigation_timeout=60 * MS1000,
         default_timeout=60 * MS1000,
+        # no_viewport=False,
+        # viewport={'height': 900, 'width': 1600},
     ) as pcm:
         page = await goto_cart_page(pcm.context, wait_until='networkidle')
+        input('清空购物车...')
         await clear_cart(page)
+        input('程序结束...')
 
 
 if __name__ == '__main__':

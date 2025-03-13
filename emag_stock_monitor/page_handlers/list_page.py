@@ -166,6 +166,6 @@ async def check_cart_dialog(page: Page, interval: int = 1000):
             #     logger.debug('关闭了一个加购弹窗')
 
 
-async def have_next_page(page: Page) -> bool:
-    """当前页面是否有下一页（针对类目页）"""
-    # TODO
+# async def have_next_page(page: Page) -> bool:
+#     """当前页面是否有下一页（针对类目页）"""
+#     # TODO
