@@ -5,7 +5,7 @@ from pathlib import Path
 
 from scraper_utils.utils.browser_util import PersistentContextManager, ResourceType, MS1000
 
-from emag_stock_monitor.models import Products, ListPageProduct
+from emag_stock_monitor.models import Product
 from emag_stock_monitor.page_handlers.cart_page import clear_cart, goto_cart_page, parse_qty
 
 
