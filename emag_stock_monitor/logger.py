@@ -4,6 +4,7 @@ from sys import stderr
 
 from loguru import logger
 
+
 logger.remove()
 logger.add(
     stderr,

@@ -1,6 +1,12 @@
 """正则表达式"""
 
-from re import compile, Pattern
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from re import compile
+
+if TYPE_CHECKING:
+    from re import Pattern
 
 
 cart_page_api_routes: dict[str, Pattern[str]] = {

@@ -35,23 +35,25 @@ async def main():
         # await page.goto('https://www.emag.ro/jocuri-societate/p4/c')
         # await page.goto('https://www.emag.ro/jocuri-societate/p5/c')
 
-        # await page.goto('https://www.emag.ro/accesorii-fitness/c')
+        await page.goto('https://www.emag.ro/accesorii-fitness/c')
         # await page.goto('https://www.emag.ro/accesorii-fitness/p2/c')
         # await page.goto('https://www.emag.ro/accesorii-fitness/p3/c')
         # await page.goto('https://www.emag.ro/accesorii-fitness/p4/c')
         # await page.goto('https://www.emag.ro/accesorii-fitness/p5/c')
 
-        await page.goto('https://www.emag.ro/navomodele/c')
+        # await page.goto('https://www.emag.ro/navomodele/c')
         await wait_page_load(page)
         result = await handle_list_page(page)
 
         # 保存成 csv 文件
         result_save_path = 'result.csv'
         with open(result_save_path, 'w', newline='', encoding='utf-8') as csv_file:
-            writer = csv.DictWriter(csv_file, fieldnames=['pnk', 'url', 'source_url', 'rank', 'qty'])
+            writer = csv.DictWriter(csv_file, fieldnames=['pnk', 'source_url', 'rank', 'qty'])
             writer.writeheader()
             for p in result:
-                writer.writerow(p.as_dict())
+                p_d = p.as_dict()
+                p_d.pop('url', None)
+                writer.writerow(p_d)
 
         logger.success(f'程序结束，爬取结果保存至 "{result_save_path}"')
 

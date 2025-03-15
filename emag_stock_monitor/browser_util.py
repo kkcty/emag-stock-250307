@@ -1,8 +1,13 @@
 """浏览器工具"""
 
-from playwright.async_api import BrowserContext
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from emag_stock_monitor.regexps import cart_page_track_routes
+
+if TYPE_CHECKING:
+    from playwright.async_api import BrowserContext
 
 
 async def block_emag_track(context: BrowserContext):
