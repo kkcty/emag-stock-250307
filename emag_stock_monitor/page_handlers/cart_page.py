@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import copy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, Optional
 
 from scraper_utils.exceptions.browser_exception import PlaywrightError
 from scraper_utils.utils.browser_util import wait_for_selector
@@ -14,8 +14,6 @@ from emag_stock_monitor.logger import logger
 from emag_stock_monitor.urls import CART_PAGE_URL
 
 if TYPE_CHECKING:
-    from typing import Literal, Optional
-
     from playwright.async_api import BrowserContext, Page
 
     from emag_stock_monitor.models import Product

@@ -33,9 +33,9 @@ async def main():
         # await page.goto('https://www.emag.ro/jocuri-societate/p2/c')
         # await page.goto('https://www.emag.ro/jocuri-societate/p3/c')
         # await page.goto('https://www.emag.ro/jocuri-societate/p4/c')
-        # await page.goto('https://www.emag.ro/jocuri-societate/p5/c')
+        await page.goto('https://www.emag.ro/jocuri-societate/p5/c')
 
-        await page.goto('https://www.emag.ro/accesorii-fitness/c')
+        # await page.goto('https://www.emag.ro/accesorii-fitness/c')
         # await page.goto('https://www.emag.ro/accesorii-fitness/p2/c')
         # await page.goto('https://www.emag.ro/accesorii-fitness/p3/c')
         # await page.goto('https://www.emag.ro/accesorii-fitness/p4/c')

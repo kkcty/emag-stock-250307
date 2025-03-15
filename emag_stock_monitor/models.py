@@ -1,19 +1,19 @@
 """数据模型"""
 
-from typing import TYPE_CHECKING
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional, Self, TypedDict
 
 from scraper_utils.utils.emag_util import build_product_url, validate_pnk
 
 if TYPE_CHECKING:
-    from typing import Optional, Self, TypedDict
 
-
-class _ProductTypedDict(TypedDict):
-    pnk: str
-    source_url: str
-    rank: int
-    qty: Optional[int]
-    url: str
+    class _ProductTypedDict(TypedDict):
+        pnk: str
+        source_url: str
+        rank: int
+        qty: Optional[int]
+        url: str
 
 
 class Product:
