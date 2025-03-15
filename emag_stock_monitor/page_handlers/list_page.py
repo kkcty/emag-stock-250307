@@ -12,12 +12,12 @@ from scraper_utils.constants.time_constant import MS1000
 from scraper_utils.exceptions.browser_exception import PlaywrightError
 
 from emag_stock_monitor.logger import logger
+from emag_stock_monitor.models import Product
 from emag_stock_monitor.page_handlers.cart_page import handle_cart
 
 if TYPE_CHECKING:
     from playwright.async_api import Page
 
-    from emag_stock_monitor.models import Product
 
 # TODO 需要检测验证码
 # /html/body[contains(@class,"captcha")]
@@ -132,7 +132,7 @@ async def handle_list_page(page: Page) -> list[Product]:
     added_products: list[Product] = list()
     # 如果加购按钮不超过 40 个
     if add_cart_button_count <= 40:
-        while cur < add_cart_button_count:
+        while cur <= add_cart_button_count:
             if page.is_closed():
                 break
             async with _add_cart_lock:
@@ -161,7 +161,7 @@ async def handle_list_page(page: Page) -> list[Product]:
 
     # 如果加购按钮超过 40 个
     else:
-        while cur < add_cart_button_count:
+        while cur <= add_cart_button_count:
             if page.is_closed():
                 break
             if cur % 40 == 0:
