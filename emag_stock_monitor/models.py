@@ -1,8 +1,11 @@
 """数据模型"""
 
-from typing import Optional, Self, TypedDict
+from typing import TYPE_CHECKING
 
 from scraper_utils.utils.emag_util import build_product_url, validate_pnk
+
+if TYPE_CHECKING:
+    from typing import Optional, Self, TypedDict
 
 
 class _ProductTypedDict(TypedDict):

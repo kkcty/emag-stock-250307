@@ -1,20 +1,27 @@
 """处理产品列表页"""
 
+from __future__ import annotations
+
 from asyncio.locks import Lock
 from asyncio.tasks import create_task
 from random import randint
 from time import perf_counter
+from typing import TYPE_CHECKING
 
-from playwright.async_api import Page
 from scraper_utils.constants.time_constant import MS1000
 from scraper_utils.exceptions.browser_exception import PlaywrightError
 
 from emag_stock_monitor.logger import logger
-from emag_stock_monitor.models import Product
 from emag_stock_monitor.page_handlers.cart_page import handle_cart
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
+
+    from emag_stock_monitor.models import Product
 
 # TODO 需要检测验证码
 # /html/body[contains(@class,"captcha")]
+# CF 验证会有很多形式，是搞模拟点击？还是当出现验证码时暂停程序并发出提醒？
 
 # TODO 每个类目爬 5 页
 
@@ -46,7 +53,7 @@ async def wait_page_load(page: Page, expect_count: int = 60, timeout: float = 10
         # 时间超时就退出
         if perf_counter() - start_time > timeout:
             logger.warning(
-                f'等待页面 "{page.url}" 加载失败，检测到 {card_item_without_promovat_divs} 个产品，期望 {expect_count}'
+                f'等待页面 "{page.url}" 加载失败，检测到 {card_item_without_promovat_div_count} 个产品，期望 {expect_count}'
             )
             return False
 

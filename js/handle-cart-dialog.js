@@ -1,3 +1,5 @@
+// FIXME 点击后还需去除页面遮罩
+
 // 自动关闭加购弹窗
 const observer = new MutationObserver(() => {
     const closeBtn = document.evaluate(

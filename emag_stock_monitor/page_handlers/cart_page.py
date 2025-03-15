@@ -1,23 +1,29 @@
 """处理购物车页"""
 
-from copy import copy
-from typing import Literal, Optional
+from __future__ import annotations
 
-from playwright.async_api import BrowserContext, Page
+from copy import copy
+from typing import TYPE_CHECKING
+
 from scraper_utils.exceptions.browser_exception import PlaywrightError
 from scraper_utils.utils.browser_util import wait_for_selector
 from scraper_utils.constants.time_constant import MS1000
 
 from emag_stock_monitor.exceptions import GotoCartPageError
 from emag_stock_monitor.logger import logger
-from emag_stock_monitor.models import Product
 from emag_stock_monitor.urls import CART_PAGE_URL
+
+if TYPE_CHECKING:
+    from typing import Literal, Optional
+
+    from playwright.async_api import BrowserContext, Page
+
+    from emag_stock_monitor.models import Product
 
 
 # TODO 需要检测验证码
 # /html/body[contains(@class,"captcha")]
-
-# NOTICE 可以通过 /products 中的 max_quantity 字段来解析 qty
+# CF 验证会有很多形式，是搞模拟点击？还是当出现验证码时暂停程序并发出提醒？
 
 
 async def goto_cart_page(
@@ -90,12 +96,6 @@ async def parse_qty(page: Page, products: list[Product]) -> list[Product]:
     """解析购物车页的产品数据"""
     logger.info('解析购物车的产品数据...')
 
-    # //a[contains(@href,"DV1ZCFYBM")]/ancestor::div[@class="cart-widget cart-line "]//div[@data-phino="Qty"]/input[@max]
-    # //a[contains(@href,"DZ2RFGMBM")]/ancestor::div[starts-with(@class,"cart-widget cart-line")]//div[@data-phino="Qty"]/input[@max]
-
-    # 根据 pnk 解析 qty 用的 xpath
-    # f'xpath=(//a[contains(@href,"{pnk}")]/ancestor::div[starts-with(@class,"cart-widget cart-line")]//div[@data-phino="Qty"]/input[@max])[1]'
-
     result: list[Product] = list()
 
     for i in products:
@@ -113,12 +113,12 @@ async def parse_qty(page: Page, products: list[Product]) -> list[Product]:
             qty: str = await qty_input.get_attribute('max', timeout=MS1000)  # type: ignore
             p.qty = int(qty)
         except PlaywrightError as pe:
-            logger.error(f'尝试获取 "{p.pnk}" 的最大可加购数时出错\n{pe}')
+            logger.error(f'尝试获取 "{p.pnk}" rank={p.rank} 的最大可加购数时出错\n{pe}')
         except ValueError as ve:
-            logger.error(f'尝试将 "{p.pnk}" 的最大可加购数解析成整数时出错\n{ve}')
+            logger.error(f'尝试将 "{p.pnk}" rank={p.rank} 的最大可加购数解析成整数时出错\n{ve}')
         else:
             result.append(p)
-            logger.debug(f'成功获取到 "{p.pnk}" 的 qty={p.qty}')
+            logger.debug(f'成功获取到 "{p.pnk}" rank={p.rank} 的最大可加购数 {p.qty}')
 
     return result
 
