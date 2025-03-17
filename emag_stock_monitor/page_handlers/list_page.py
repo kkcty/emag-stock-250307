@@ -5,6 +5,7 @@ from __future__ import annotations
 from asyncio.locks import Lock
 from asyncio.tasks import create_task
 from random import randint
+import re
 from time import perf_counter
 from typing import TYPE_CHECKING
 
@@ -16,7 +17,7 @@ from emag_stock_monitor.models import Product
 from emag_stock_monitor.page_handlers.cart_page import handle_cart
 
 if TYPE_CHECKING:
-    from playwright.async_api import Page
+    from playwright.async_api import Page, Locator
 
 
 # TODO 需要检测验证码
@@ -128,6 +129,7 @@ async def handle_list_page(page: Page) -> list[Product]:
     )
 
     ##### 加购产品 #####
+    # BUG 理论上每个 pnk 只会被加购一次，但为什么购物车页有的产品的已加购数会大于一？
     cur = 1
     added_products: list[Product] = list()
     # 如果加购按钮不超过 40 个
@@ -150,7 +152,11 @@ async def handle_list_page(page: Page) -> list[Product]:
                     else:
                         if pnk == rank_pnk[cur]:
                             logger.debug(f'第 {cur} 个产品加购成功 pnk="{pnk}"')
-                            added_products.append(Product(pnk=pnk, source_url=page.url, rank=cur))
+                            current_product = await handle_top_review(
+                                add_cart_buttons.nth(cur - 1),
+                                Product(pnk=pnk, source_url=page.url, rank=cur),
+                            )
+                            added_products.append(current_product)
                             cur += 1
                         else:
                             logger.error(
@@ -183,7 +189,11 @@ async def handle_list_page(page: Page) -> list[Product]:
                     else:
                         if pnk == rank_pnk[cur]:
                             logger.debug(f'第 {cur} 个产品加购成功 pnk="{pnk}"')
-                            added_products.append(Product(pnk=pnk, source_url=page.url, rank=cur))
+                            current_product = await handle_top_review(
+                                add_cart_buttons.nth(cur - 1),
+                                Product(pnk=pnk, source_url=page.url, rank=cur),
+                            )
+                            added_products.append(current_product)
                             cur += 1
                         else:
                             logger.error(
@@ -192,9 +202,43 @@ async def handle_list_page(page: Page) -> list[Product]:
 
         # 从第 41 个开始的产品
         result_past_40 = await handle_cart(page.context, added_products, False)
-        result: list[Product] = result_past_40 + result_pre_40  # type: ignore
+        result: list[Product] = result_pre_40 + result_past_40 # type: ignore
 
     await page.close()
     await check_cart_dialog_task
 
     return result
+
+
+async def handle_top_review(button_locator: Locator, product: Product) -> Product:
+    """检查加购按钮对应的产品是否带 top 标、评论数多少"""
+    # TOP 标
+    # //div[starts-with(@class, "card-item")][not(.//div[starts-with(@class, "card-v2-badge-cmp-holder")]/span[starts-with(@class, "card-v2-badge-cmp")])]
+    # //form/button[@data-pnk]
+    # /ancestor::div[starts-with(@class,"card-v2-wrapper")]//span[text()="Top Favorite"]
+    top_span = button_locator.locator(
+        'xpath=/ancestor::div[starts-with(@class,"card-v2-wrapper")]//span[text()="Top Favorite"]'
+    )
+    top_flag = await top_span.count() > 0
+    product.top_favorite = top_flag
+    logger.debug(f'pnk="{product.pnk}" 解析到 Top 标志 "{top_flag}"')
+
+    # 评论数
+    # //div[starts-with(@class, "card-item")][not(.//div[starts-with(@class, "card-v2-badge-cmp-holder")]/span[starts-with(@class, "card-v2-badge-cmp")])]
+    # //form/button[@data-pnk]
+    # /ancestor::div[starts-with(@class,"card-v2-wrapper")]//div[@class="star-rating-text "]/span[@class="visible-xs-inline-block " and text()!=""]
+    review_count = None
+    review_count_span = button_locator.locator(
+        'xpath=/ancestor::div[starts-with(@class,"card-v2-wrapper")]//div[@class="star-rating-text "]/span[@class="visible-xs-inline-block " and text()!=""]'
+    )
+    if await review_count_span.count() > 0:
+        review_count_text = await review_count_span.inner_text(timeout=MS1000)
+        review_count_text_match = re.search(r'\((\d+)\)', review_count_text)
+        if review_count_text_match is not None:
+            review_count = int(review_count_text_match.group(1))
+    else:
+        logger.warning(f'pnk="{product.pnk}" 定位不到评论数标签')
+    product.review_count = review_count
+    logger.debug(f'pnk="{product.pnk}" 解析到评论数 {review_count}')
+
+    return product
