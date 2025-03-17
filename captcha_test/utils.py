@@ -5,16 +5,21 @@ from sys import stderr
 from typing import TYPE_CHECKING
 
 from loguru import logger
+from scraper_utils.utils.file_util import read_file
+
+from .exceptions import CaptchaError
 
 
 if TYPE_CHECKING:
-    from playwright.async_api import BrowserContext, Response, ProxySettings
+    from playwright.async_api import BrowserContext, Page, Response, ProxySettings
 
 
 __all__ = [
     'logger',
-    'block_emag_track_endpoint',
+    'block_track_endpoint',
+    'block_cookie_banner',
     'captcha_handler',
+    'get_proxy',
 ]
 
 
@@ -41,15 +46,37 @@ logger.add(
 )
 
 
-async def block_emag_track_endpoint(context: BrowserContext) -> None:
+async def block_track_endpoint(context: BrowserContext) -> None:
     """屏蔽 eMAG 的页面埋点"""
     for ep in _track_endpoints:
         await context.route(ep, lambda r: r.abort())
 
 
+_hide_cookie_banner_js = read_file(file='js/hide-cookie-banner.js', mode='str', async_mode=False)
+
+
+async def block_cookie_banner(page: Page) -> None:
+    """屏蔽 cookie 提示"""
+    await page.add_init_script(script=_hide_cookie_banner_js)
+
+
+_captcha_url_status: dict[str, tuple[re.Pattern[str], int]] = {
+    'www.emag.ro': (re.compile(r'.*?www.emag.ro.*'), 511),
+    'challenges.cloudflare.com': (re.compile(r'.*?challenges.cloudflare.com.*'), 401),
+    # TODO 还需更多 endpoints
+}
+
+
 async def captcha_handler(response: Response) -> None:
     """处理验证码"""
-    # TODO
+    url = response.url
+    status = response.status
+    if any(
+        status == expect_status and url_pattern.search(url) is not None
+        for url_pattern, expect_status in _captcha_url_status.values()
+    ):
+        logger.error(f'检测到验证码 "{url}" {status}')
+        raise CaptchaError(url=url, status=status)
 
 
 async def get_proxy() -> ProxySettings:

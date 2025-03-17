@@ -6,10 +6,8 @@ authors = [{ name = "ukk119", email = "jdycty2002@163.com" }]
 requires-python = "^3.13"
 dependencies = [
     "loguru (>=0.7.3,<0.8.0)",
-    "scraper-utils @ https://github.com/kuku119/scraper-utils/releases/download/v1.0.5/scraper_utils-1.0.5-py3-none-any.whl",
-    "pandas (>=2.2.3,<3.0.0)",
-    "scrapy (>=2.12.0,<3.0.0)",
-    "scrapy-playwright (>=0.0.43,<0.0.44)",
+    "scraper-utils @ https://github.com/kuku119/scraper-utils/releases/download/v1.0.6/scraper_utils-1.0.6-py3-none-any.whl",
+    "aiohttp (>=3.11.14,<4.0.0)",
 ]
 
 [tool.poetry]
@@ -20,10 +18,6 @@ black = "^25.1.0"
 jupyter = "^1.1.1"
 
 
-[[tool.poetry.source]]
-name = "tsinghua"
-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/"
-priority = "primary"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

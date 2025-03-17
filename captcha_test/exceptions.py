@@ -11,11 +11,17 @@ if TYPE_CHECKING:
 class CaptchaError(Exception):
     """遇到验证码时抛出的异常"""
 
-    def __init__(self, url: str, status: int, message: str, time: Optional[str] = None) -> None:
+    def __init__(
+        self, url: str, status: int, message: Optional[str] = None, time: Optional[str] = None
+    ) -> None:
         self.url = url
         self.status = status
         self.message = message
         self.time = time if time is not None else now_str()
 
     def __str__(self) -> str:
-        return f'{self.__class__.__name__}: {self.message}\t{{url="{self.url}", status={self.status}, time="{self.time}"}}'
+        class_name = self.__class__.__name__
+        if self.message is None:
+            return f'{class_name}: {{"{self.url}", {self.status}, "{self.time}"}}'
+        else:
+            return f'{class_name}: {self.message}\t{{"{self.url}", {self.status}, "{self.time}"}}'

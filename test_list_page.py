@@ -95,7 +95,7 @@ async def check_captcha_test(response: Response) -> None:
         (
             # NOTICE 单单这些判断就够了吗？
             re.search(r'.*?www.emag.ro.*', url) is not None and status == 511,
-            re.search(r'.*?challenges.cloudflare.com*', url) is not None and status == 401,
+            re.search(r'.*?challenges.cloudflare.com.*', url) is not None and status == 401,
         )
     ):
         logger.error(f'"{url}" 检测到验证码 status={status}')
