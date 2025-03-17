@@ -23,6 +23,17 @@ __all__ = [
 ]
 
 
+logger.remove()
+logger.add(
+    stderr,
+    format=(
+        '[<green>{time:HH:mm:ss}</green>] [<level>{level:.3}</level>] '
+        '[<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan>] >>> '
+        '<level>{message}</level>'
+    ),
+)
+
+
 _track_endpoints = [
     re.compile(r'.*?ams\.creativecdn\.com/tags/v2.*'),
     re.compile(r'.*?ingest\.de\.sentry\.io/api.*'),
@@ -33,17 +44,6 @@ _track_endpoints = [
     re.compile(r'.*?stats\.g\.doubleclick\.net/j/collect.*'),
     re.compile(r'.*?emag\.ro/logger\.json.*'),
 ]
-
-
-logger.remove()
-logger.add(
-    stderr,
-    format=(
-        '[<green>{time:HH:mm:ss}</green>] [<level>{level:.3}</level>] '
-        '[<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan>] >>> '
-        '<level>{message}</level>'
-    ),
-)
 
 
 async def block_track_endpoint(context: BrowserContext) -> None:
@@ -80,5 +80,5 @@ async def captcha_handler(response: Response) -> None:
 
 
 async def get_proxy() -> ProxySettings:
-    """获取代理"""
+    """从 IP 池供应商那获取代理"""
     # TODO

@@ -1,3 +1,5 @@
+itv = null;
+
 // 自动隐藏 eMAG 的 cookie 提示
 function hideCookieBanner() {
     const xpath = '//div[starts-with(@class, "gdpr-cookie-banner")]';
@@ -5,6 +7,7 @@ function hideCookieBanner() {
 
     if (result.singleNodeValue) {
         result.singleNodeValue.style.visibility = 'hidden';
+        clearInterval(itv);
     }
 }
 
@@ -12,4 +15,4 @@ function hideCookieBanner() {
 document.addEventListener('DOMContentLoaded', hideCookieBanner);
 
 // 每500ms检查一次（应对动态加载内容）
-setInterval(hideCookieBanner, 500);
+itv = setInterval(hideCookieBanner, 500);
