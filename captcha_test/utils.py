@@ -79,6 +79,11 @@ async def captcha_handler(response: Response) -> None:
         raise CaptchaError(url=url, status=status)
 
 
-async def get_proxy() -> ProxySettings:
+def get_proxy() -> ProxySettings:
     """从 IP 池供应商那获取代理"""
-    # TODO
+    # TODO 待测试
+    return {
+        'server': 'brd.superproxy.io:33335',
+        'username': 'brd-customer-hl_c209a425-zone-residential_proxy1',
+        'password': 'zw5a6ar0pnf2',
+    }
